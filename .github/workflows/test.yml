@@ -15,7 +15,6 @@ jobs:
           npm install
       - run: |
           npm run all
-      - uses: actions/checkout@v2
       - uses: ./
         with:
           audience: 'ghactions'
