@@ -43,7 +43,7 @@ function run() {
             let aud = '';
             const audience = core.getInput('audience', { required: false });
             if (audience !== undefined)
-                aud = `{aud: ${audience}}`;
+                aud = `${audience}`;
             const id_token = oidc_client.getIDToken(aud);
             core.setOutput('id_token', id_token);
         }

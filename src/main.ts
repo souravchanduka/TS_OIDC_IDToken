@@ -7,7 +7,7 @@ async function run(): Promise<void> {
     let aud = ''
     const audience = core.getInput('audience', {required: false})
     if (audience !== undefined) 
-      aud = `{aud: ${audience}}`
+      aud = `${audience}`
     
     const id_token = oidc_client.getIDToken(aud)
 
