@@ -1348,13 +1348,15 @@ function getIDToken(audience) {
                 throw new Error(`Failed to get Httpclient `);
             }
             core.debug(`Httpclient created ${httpclient} `); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-            const additionalHeaders = {
-                [actions_http_client.Headers.ContentType]: actions_http_client.MediaTypes.ApplicationJson
-            };
+            const additionalHeaders = {};
+            additionalHeaders[actions_http_client.Headers.ContentType] =
+                actions_http_client.MediaTypes.ApplicationJson;
+            additionalHeaders[actions_http_client.Headers.Accept] =
+                actions_http_client.MediaTypes.ApplicationJson;
             const data = JSON.stringify({ aud: audience });
             const response = yield httpclient.post(id_token_url, data, additionalHeaders);
             if (!utils_1.isSuccessStatusCode(response.message.statusCode)) {
-                throw new Error(`Failed to get ID Token. Error message  :${response.message.statusMessage} `);
+                throw new Error(`Failed to get ID Token. Error message  :${response.message.statusMessage} id_token_url:${id_token_url} data:${data} additionalHeader:${additionalHeaders}`);
             }
             const body = yield response.readBody();
             const val = JSON.parse(body);
@@ -1374,7 +1376,7 @@ function getIDToken(audience) {
 }
 exports.getIDToken = getIDToken;
 //module.exports.getIDToken = getIDToken
-getIDToken('ghactions');
+//getIDToken('ghactions')
 //# sourceMappingURL=main.js.map
 
 /***/ }),
