@@ -9,7 +9,7 @@ async function run(): Promise<void> {
     if (audience !== undefined) 
       aud = `${audience}`
     
-    const id_token = oidc_client.getIDToken(aud)
+    const id_token = await oidc_client.getIDToken(aud)
 
     core.setOutput('id_token', id_token)
 
