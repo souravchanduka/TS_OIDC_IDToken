@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-var oidc_client = require('@sourav_chanduka/oidc-client')
+var oidc_client = require('@sourav_chanduka/core')
 
 
 async function run(): Promise<void> {
