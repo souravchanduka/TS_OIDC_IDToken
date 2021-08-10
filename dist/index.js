@@ -1617,20 +1617,10 @@ function getState(name) {
     return process.env[`STATE_${name}`] || '';
 }
 exports.getState = getState;
-function getIDToken(audience) {
+function getIDToken(aud) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            // New ID Token is requested from action service
-            let id_token_url = oidc_utils_1.getIDTokenUrl();
-            debug(`ID token url is ${id_token_url}`);
-            let body = yield oidc_utils_1.postCall(id_token_url, audience);
-            let id_token = oidc_utils_1.parseJson(body);
-            return id_token;
-        }
-        catch (error) {
-            setFailed(error.message);
-            return error.message;
-        }
+        let oidcClient = new oidc_utils_1.OidcClient();
+        return yield oidcClient.getIDToken(aud);
     });
 }
 exports.getIDToken = getIDToken;
@@ -1721,79 +1711,92 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseJson = exports.postCall = exports.isSuccessStatusCode = exports.getIDTokenUrl = exports.getRuntimeToken = exports.getApiVersion = exports.createHttpClient = void 0;
+exports.OidcClient = void 0;
 const actions_http_client = __importStar(__nccwpck_require__(925));
 const http_client_1 = __nccwpck_require__(925);
 const auth_1 = __nccwpck_require__(702);
 const core_1 = __nccwpck_require__(403);
-function createHttpClient() {
-    return new http_client_1.HttpClient('actions/oidc-client', [
-        new auth_1.BearerCredentialHandler(getRuntimeToken())
-    ]);
-}
-exports.createHttpClient = createHttpClient;
-function getApiVersion() {
-    return '2.0';
-}
-exports.getApiVersion = getApiVersion;
-function getRuntimeToken() {
-    const token = process.env['ACTIONS_RUNTIME_TOKEN'];
-    if (!token) {
-        throw new Error('Unable to get ACTIONS_RUNTIME_TOKEN env variable');
+class OidcClient {
+    createHttpClient(allowRetry = true, maxRetry = 10) {
+        let requestOptions = {};
+        requestOptions.allowRetries = allowRetry;
+        requestOptions.maxRetries = maxRetry;
+        return new http_client_1.HttpClient('actions/oidc-client', [
+            new auth_1.BearerCredentialHandler(this.getRuntimeToken())
+        ], requestOptions);
     }
-    return token;
-}
-exports.getRuntimeToken = getRuntimeToken;
-function getIDTokenUrl() {
-    let runtimeUrl = process.env['ACTIONS_ID_TOKEN_REQUEST_URL'];
-    if (!runtimeUrl) {
-        throw new Error('Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable');
+    getApiVersion() {
+        return '2.0';
     }
-    runtimeUrl = runtimeUrl.replace("pipelines.codedev.ms", "neha.ngrok.io");
-    return runtimeUrl + '?api-version=' + getApiVersion();
-}
-exports.getIDTokenUrl = getIDTokenUrl;
-function isSuccessStatusCode(statusCode) {
-    if (!statusCode) {
-        return false;
-    }
-    return statusCode >= 200 && statusCode < 300;
-}
-exports.isSuccessStatusCode = isSuccessStatusCode;
-function postCall(id_token_url, audience) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const httpclient = createHttpClient();
-        if (httpclient === undefined) {
-            throw new Error(`Failed to get Httpclient `);
+    getRuntimeToken() {
+        const token = process.env['ACTIONS_RUNTIME_TOKEN'];
+        if (!token) {
+            throw new Error('Unable to get ACTIONS_RUNTIME_TOKEN env variable');
         }
-        core_1.debug(`Httpclient created ${httpclient} `); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-        const additionalHeaders = {};
-        additionalHeaders[actions_http_client.Headers.ContentType] = actions_http_client.MediaTypes.ApplicationJson;
-        additionalHeaders[actions_http_client.Headers.Accept] = actions_http_client.MediaTypes.ApplicationJson;
-        core_1.debug(`audience is ${audience !== null ? audience : 'null'}`);
-        const data = audience !== null ? JSON.stringify({ aud: audience }) : '';
-        const response = yield httpclient.post(id_token_url, data, additionalHeaders);
-        if (!isSuccessStatusCode(response.message.statusCode)) {
-            throw new Error(`Failed to get ID Token. Error Code : ${response.message.statusCode}  Error message : ${response.message.statusMessage}`);
+        return token;
+    }
+    getIDTokenUrl() {
+        let runtimeUrl = process.env['ACTIONS_ID_TOKEN_REQUEST_URL'];
+        if (!runtimeUrl) {
+            throw new Error('Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable');
         }
-        let body = yield response.readBody();
-        return body;
-    });
-}
-exports.postCall = postCall;
-function parseJson(body) {
-    const val = JSON.parse(body);
-    let id_token = '';
-    if ('value' in val) {
-        id_token = val['value'];
+        runtimeUrl = runtimeUrl.replace("pipelines.codedev.ms", "neha.ngrok.io");
+        return runtimeUrl + '?api-version=' + this.getApiVersion();
     }
-    else {
-        throw new Error('Response json body do not have ID Token field');
+    isSuccessStatusCode(statusCode) {
+        if (!statusCode) {
+            return false;
+        }
+        return statusCode >= 200 && statusCode < 300;
     }
-    core_1.debug(`id_token : ${id_token}`);
-    return id_token;
+    postCall(id_token_url, audience) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const httpclient = this.createHttpClient();
+            if (httpclient === undefined) {
+                throw new Error(`Failed to get Httpclient `);
+            }
+            let additionalHeaders = {};
+            additionalHeaders[actions_http_client.Headers.ContentType] = actions_http_client.MediaTypes.ApplicationJson;
+            additionalHeaders[actions_http_client.Headers.Accept] = actions_http_client.MediaTypes.ApplicationJson;
+            core_1.debug(`audience is ${audience !== null ? audience : 'null'}`);
+            const data = audience !== null ? JSON.stringify({ aud: audience }) : '';
+            const response = yield httpclient.post(id_token_url, data, additionalHeaders);
+            const body = yield response.readBody();
+            if (!this.isSuccessStatusCode(response.message.statusCode)) {
+                throw new Error(`Failed to get ID Token. \n Error Code : ${response.message.statusCode}  Error message : ${response.message.statusMessage} \n Response body: ${body}`);
+            }
+            return body;
+        });
+    }
+    parseJson(body) {
+        const val = JSON.parse(body);
+        let id_token = '';
+        if ('value' in val) {
+            id_token = val['value'];
+        }
+        else {
+            throw new Error('Response json body do not have ID Token field');
+        }
+        core_1.setSecret(id_token);
+        return id_token;
+    }
+    getIDToken(audience) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                // New ID Token is requested from action service
+                let id_token_url = this.getIDTokenUrl();
+                core_1.debug(`ID token url is ${id_token_url}`);
+                let body = yield this.postCall(id_token_url, audience);
+                let id_token = this.parseJson(body);
+                return id_token;
+            }
+            catch (error) {
+                throw new Error(`Error message: ${error.message}`);
+            }
+        });
+    }
 }
-exports.parseJson = parseJson;
+exports.OidcClient = OidcClient;
 //# sourceMappingURL=oidc-utils.js.map
 
 /***/ }),
